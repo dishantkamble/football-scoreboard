@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.dishant.football.scoreboard.exception.ForbiddenException;
 import com.dishant.football.scoreboard.model.Match;
 import com.dishant.football.scoreboard.model.TeamType;
 
@@ -24,40 +25,50 @@ class ScoreboardManagerTest {
 
 	@Test
 	void testStartNewMatchSuccess() {
-		this.scoreboardManager.startNewMatch("teamA", "teamB");
+		this.scoreboardManager.startMatch("teamA", "teamB");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 	}
 
 	@Test
 	void testStartNewMatchSuccessWithMultipleHome() {
-		this.scoreboardManager.startNewMatch("teamC", "teamD");
+		this.scoreboardManager.startMatch("teamC", "teamD");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
-		this.scoreboardManager.startNewMatch("teamE", "teamD");
+		this.scoreboardManager.startMatch("teamE", "teamD");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 	}
 
 	@Test
 	void testStartNewMatchSuccessWithMultipleAway() {
-		this.scoreboardManager.startNewMatch("teamF", "teamG");
+		this.scoreboardManager.startMatch("teamF", "teamG");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
-		this.scoreboardManager.startNewMatch("teamF", "teamH");
+		this.scoreboardManager.startMatch("teamF", "teamH");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 	}
 
 	@Test
-	void testStartNewMatchFailWithIllegalStateException() {
-		this.scoreboardManager.startNewMatch("teamI", "teamJ");
+	void testStartNewMatchFailWithForbiddenException() {
+		this.scoreboardManager.startMatch("teamI", "teamJ");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
-		assertThatThrownBy(() -> this.scoreboardManager.startNewMatch("teamI", "teamJ"))
-				.isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(() -> this.scoreboardManager.startMatch("teamI", "teamJ"))
+				.isInstanceOf(ForbiddenException.class);
+	}
+
+	@Test
+	void testUpdateScoreSuccess() {
+		UUID matchId = this.scoreboardManager.startMatch("teamK1", "teamL1");
+		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
+
+		this.scoreboardManager.updateScore(matchId, 1, 0);
+		assertThat(this.scoreboardManager.getScoreboard().getMatches().get(matchId).getScore())
+				.containsEntry(TeamType.HOME, 1);
 	}
 
 	@Test
 	void testUpdateHomeScoreSuccess() {
-		UUID matchId = this.scoreboardManager.startNewMatch("teamK", "teamL");
+		UUID matchId = this.scoreboardManager.startMatch("teamK", "teamL");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
 		this.scoreboardManager.updateScore(matchId, TeamType.HOME);
@@ -67,7 +78,7 @@ class ScoreboardManagerTest {
 
 	@Test
 	void testUpdateAwayScoreSuccess() {
-		UUID matchId = this.scoreboardManager.startNewMatch("teamM", "teamN");
+		UUID matchId = this.scoreboardManager.startMatch("teamM", "teamN");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
 		this.scoreboardManager.updateScore(matchId, TeamType.AWAY);
@@ -77,7 +88,7 @@ class ScoreboardManagerTest {
 
 	@Test
 	void testUpdateAwayScoreFail() {
-		UUID matchId = this.scoreboardManager.startNewMatch("teamO", "teamP");
+		UUID matchId = this.scoreboardManager.startMatch("teamO", "teamP");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
 		Map<TeamType, Integer> scores = this.scoreboardManager.updateScore(matchId, null);
@@ -92,11 +103,21 @@ class ScoreboardManagerTest {
 
 	@Test
 	void testEndMatchSuccess() {
-		UUID matchId = this.scoreboardManager.startNewMatch("teamQ", "teamR");
+		UUID matchId = this.scoreboardManager.startMatch("teamQ", "teamR");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
 		this.scoreboardManager.endMatch(matchId);
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isZero();
+	}
+
+	@Test
+	void testEndMatchByNameSuccess() {
+		this.scoreboardManager.startMatch("teamQ1", "teamR1");
+		int ongoingMatches = this.scoreboardManager.getScoreboard().getMatches().size();
+		assertThat(ongoingMatches).isNotZero();
+
+		this.scoreboardManager.endMatch("teamQ1", "teamR1");
+		assertThat(this.scoreboardManager.getScoreboard().getMatches()).hasSize(ongoingMatches - 1);
 	}
 
 	@Test
@@ -107,7 +128,7 @@ class ScoreboardManagerTest {
 
 	@Test
 	void testSummarySuccess() {
-		this.scoreboardManager.startNewMatch("teamS", "teamT");
+		this.scoreboardManager.startMatch("teamS", "teamT");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
 		assertThat(this.scoreboardManager.summary().size()).isNotZero();
@@ -115,10 +136,10 @@ class ScoreboardManagerTest {
 
 	@Test
 	void testMultipleSummarySuccess() {
-		this.scoreboardManager.startNewMatch("teamU", "teamV");
+		this.scoreboardManager.startMatch("teamU", "teamV");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
-		this.scoreboardManager.startNewMatch("teamW", "teamX");
+		this.scoreboardManager.startMatch("teamW", "teamX");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
 		assertThat(this.scoreboardManager.summary().size()).isNotZero();
@@ -126,10 +147,10 @@ class ScoreboardManagerTest {
 
 	@Test
 	void testMultipleSummarySuccessOrdered() {
-		this.scoreboardManager.startNewMatch("teamY", "teamZ");
+		this.scoreboardManager.startMatch("teamY", "teamZ");
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 
-		UUID matchTwoId = this.scoreboardManager.startNewMatch("teamAA", "teamAB");
+		UUID matchTwoId = this.scoreboardManager.startMatch("teamAA", "teamAB");
 		this.scoreboardManager.updateScore(matchTwoId, TeamType.HOME);
 		assertThat(this.scoreboardManager.getScoreboard().getMatches().size()).isNotZero();
 

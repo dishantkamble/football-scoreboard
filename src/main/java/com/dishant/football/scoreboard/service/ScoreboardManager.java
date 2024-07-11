@@ -9,49 +9,42 @@ import com.dishant.football.scoreboard.model.Scoreboard;
 import com.dishant.football.scoreboard.model.TeamType;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 @Getter
+@Slf4j
 public final class ScoreboardManager {
-
-	private static ScoreboardManager instance;
 
 	private final Scoreboard scoreboard = new Scoreboard();
 
 	private ScoreboardManager() {
 	}
 
-	static {
-		try {
-			instance = new ScoreboardManager();
-		} catch (Exception ex) {
-			throw new RuntimeException("Exception while creating ScoreboardManager instance", ex);
-		}
+	private static class ScoreboardManagerHelper {
+		private static final ScoreboardManager INSTANCE = new ScoreboardManager();
 	}
 
+	/**
+	 * Returns an instance of ScoreboardManager using the Bill Pugh implementation
+	 * for thread safe implementation of singleton.
+	 * 
+	 * @return ScoreboardManagerHelper.INSTANCE
+	 *
+	 */
 	public static ScoreboardManager getInstance() {
-		return instance;
+		return ScoreboardManagerHelper.INSTANCE;
 	}
 
 	/**
 	 * Starts a new match between two teams represented by parameters homeTeam and
-	 * awayteam as the team names. Also adds the match to the scoreboard.
+	 * awayTeam as the team names. Also adds the match to the scoreboard.
 	 * 
 	 * @param homeTeam
 	 * @param awayTeam
-	 * @return matchId of the newly started match
+	 * @return id of the newly started match
 	 */
-	public UUID startNewMatch(String homeTeam, String awayTeam) {
-		if (this.scoreboard.getMatches().values().stream()
-				.filter(match -> homeTeam.equalsIgnoreCase(match.getHome().getName())
-						&& awayTeam.equalsIgnoreCase(match.getAway().getName()))
-				.count() > 0) {
-			throw new IllegalStateException(
-					"Match already 'In-Progress' for Home = " + homeTeam + " and Away = " + awayTeam);
-		}
-
-		Match match = new Match(homeTeam, awayTeam);
-		this.scoreboard.getMatches().put(match.getId(), match);
-		return match.getId();
+	public UUID startMatch(String homeTeam, String awayTeam) {
+		return this.scoreboard.addMatch(new Match(homeTeam, awayTeam)).getId();
 	}
 
 	/**
@@ -63,16 +56,28 @@ public final class ScoreboardManager {
 	 * @return the updated score for homeTeam and awayTeam
 	 */
 	public Map<TeamType, Integer> updateScore(UUID matchId, TeamType scoringTeam) {
-		this.scoreboard.validateMatch(matchId);
-
-		Match validMatch = this.scoreboard.getMatches().get(matchId);
+		Match match = this.scoreboard.getMatch(matchId);
 
 		if (TeamType.HOME.equals(scoringTeam)) {
-			validMatch.scoreForHome();
+			match.scoreForHome();
 		} else if (TeamType.AWAY.equals(scoringTeam)) {
-			validMatch.scoreForAway();
+			match.scoreForAway();
 		}
-		return validMatch.getScore();
+		return match.getScore();
+	}
+
+	/**
+	 * Updates the score of an existing 'In-Progress' match. Identifies the match by
+	 * the matchId parameter while identifies the team by the scoringTeam parameter.
+	 * 
+	 * @param matchId
+	 * @param homeScore
+	 * @param awayScore
+	 * @return the updated score for homeTeam and awayTeam
+	 */
+	public Map<TeamType, Integer> updateScore(UUID matchId, int homeScore, int awayScore) {
+		Match match = this.scoreboard.getMatch(matchId);
+		return match.overrideScore(homeScore, awayScore);
 	}
 
 	/**
@@ -82,9 +87,19 @@ public final class ScoreboardManager {
 	 * @param matchId
 	 */
 	public void endMatch(UUID matchId) {
-		this.scoreboard.validateMatch(matchId);
-		this.scoreboard.getMatches().get(matchId).endMatch();
-		this.scoreboard.getMatches().remove(matchId);
+		this.scoreboard.endMatch(matchId);
+	}
+
+	/**
+	 * Ends an existing 'In-Progress' match. Identifies the match by the name of the
+	 * homeTeam and awayTeam arguments. Also removes the match from the scoreboard.
+	 * 
+	 * @param homeTeam
+	 * @param awayTeam
+	 */
+	public void endMatch(String homeTeam, String awayTeam) {
+		Match match = this.scoreboard.getMatch(homeTeam, awayTeam);
+		this.endMatch(match.getId());
 	}
 
 	/**
@@ -96,6 +111,13 @@ public final class ScoreboardManager {
 	 * @return List of 'In-Progress' matches in sorted order.
 	 */
 	public List<Match> summary() {
-		return this.scoreboard.getSummary();
+		List<Match> summary = this.scoreboard.getSummary();
+		this.print(summary);
+		return summary;
+	}
+
+	private void print(List<Match> summary) {
+		summary.stream().forEach(match -> log.info("{} {} - {} {}", match.getHome().getName(),
+				match.getScore(TeamType.HOME), match.getAway().getName(), match.getScore(TeamType.AWAY)));
 	}
 }

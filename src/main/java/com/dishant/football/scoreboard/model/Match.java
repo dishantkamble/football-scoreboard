@@ -41,12 +41,22 @@ public class Match {
 		return this.score;
 	}
 
+	public int getScore(TeamType team) {
+		return this.score.get(team);
+	}
+
 	public Map<TeamType, Integer> scoreForAway() {
 		this.score.put(TeamType.AWAY, this.score.get(TeamType.AWAY) + 1);
 		return this.score;
 	}
 
-	public void endMatch() {
+	public Map<TeamType, Integer> overrideScore(int homeScore, int awayScore) {
+		this.score.put(TeamType.HOME, homeScore);
+		this.score.put(TeamType.AWAY, awayScore);
+		return this.score;
+	}
+
+	public void end() {
 		this.status = MatchStatus.COMPLETED;
 	}
 }
